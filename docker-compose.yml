@@ -1,0 +1,46 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: pg-payment
+    environment:
+      POSTGRES_DB: payment_service
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+
+    ports:
+      - "5437:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d payment_service" ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  payment-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: payment-service:dev
+    container_name: payment-service
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SERVER_PORT: "8087"
+
+      SPRING_DATASOURCE_URL: "jdbc:postgresql://db:5432/payment_service"
+      SPRING_DATASOURCE_USERNAME: "postgres"
+      SPRING_DATASOURCE_PASSWORD: "postgres"
+
+      SPRING_JPA_HIBERNATE_DDL_AUTO: "update"
+      SPRING_JPA_SHOW_SQL: "true"
+      SPRING_JPA_PROPERTIES_HIBERNATE_FORMAT_SQL: "true"
+
+      TICKETS_BASE_URL: "http://host.docker.internal:8081"
+    ports:
+      - "8087:8087"
+
+volumes:
+  pgdata:
