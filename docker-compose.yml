@@ -39,6 +39,11 @@ services:
       SPRING_JPA_PROPERTIES_HIBERNATE_FORMAT_SQL: "true"
 
       TICKETS_BASE_URL: "http://host.docker.internal:8081"
+      TICKETS_SERVICE_UPDATE_PATH: "/tickets"
+
+      WEBHOOK_SERVICE_BASE_URL: "http://host.docker.internal:8088"
+      WEBHOOK_SERVICE_GETNEXT_PATH: "/webhook/payment/next"
+      WEBHOOK_SERVICE_PATCH_PATH: "/webhook/payment/received"
     ports:
       - "8087:8087"
 

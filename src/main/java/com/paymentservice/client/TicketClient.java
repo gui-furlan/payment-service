@@ -28,7 +28,7 @@ public class TicketClient {
         this.updatePath = updatePath;
     }
 
-    public void updateTicketStatus(UUID ticketId, BillingStatus status) {
+    public void updateTicketStatus(String ticketId, BillingStatus status) {
         String actionSegment;
         if (status == BillingStatus.PAID) {
             actionSegment = "confirm";

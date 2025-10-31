@@ -18,7 +18,7 @@ public class Billing {
     private BigDecimal value;
 
     @Column(name = "ticket_id", nullable = false)
-    private UUID ticketId;
+    private String ticketId;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
@@ -35,7 +35,7 @@ public class Billing {
 
     public Billing() {}
 
-    public Billing(UUID id, BigDecimal value, UUID ticketId, BillingStatus status,
+    public Billing(UUID id, BigDecimal value, String ticketId, BillingStatus status,
                    LocalDateTime dueDate, LocalDateTime createdAt, LocalDateTime updatedAt) {
         this.id = id;
         this.value = value;
@@ -80,11 +80,11 @@ public class Billing {
         this.value = value;
     }
 
-    public UUID getTicketId() {
+    public String getTicketId() {
         return ticketId;
     }
 
-    public void setTicketId(UUID ticketId) {
+    public void setTicketId(String ticketId) {
         this.ticketId = ticketId;
     }
 

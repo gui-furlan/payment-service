@@ -16,16 +16,19 @@ public class WebhookClient {
 
     private final RestTemplate restTemplate;
     private final String baseUrl;
-    private final String webhookPath;
+    private final String webhookGetNextPath;
+    private final String webhookPatchPath;
 
     public WebhookClient(
             RestTemplate restTemplate,
             @Value("${webhook.service.base-url}") String baseUrl,
-            @Value("${webhook.service.path}") String webhookPath
+            @Value("${webhook.service.getnext-path}") String webhookGetNextPath,
+            @Value("${webhook.service.patch-path}") String webhookPatchPath
     ) {
         this.restTemplate = restTemplate;
         this.baseUrl = baseUrl;
-        this.webhookPath = webhookPath;
+        this.webhookGetNextPath = webhookGetNextPath;
+        this.webhookPatchPath = webhookPatchPath;
     }
 
     /**
@@ -33,8 +36,15 @@ public class WebhookClient {
      */
     public void processAllPayments(BillingService billingService) {
         Long lastReadId = null;
+
+        // WebhookResponse response = null;
+        // response = getNextPayment();
+
+        // log.error("response: " + response.toString());
+
         while (true) {
             WebhookResponse response = null;
+
             try {
                 response = getNextPayment();
             } catch (RestClientException ex) {
@@ -45,6 +55,7 @@ public class WebhookClient {
                 log.error("Error fetching payment: {}", ex.getMessage());
                 break;
             }
+
             if (response == null) {
                 log.info("No payment response received, stopping");
                 break;
@@ -53,27 +64,17 @@ public class WebhookClient {
                 log.info("Last read message is the same as current. Stopping loop.");
                 break;
             }
-            processNextPayment(billingService);
+            processNextPayment(billingService, response);
             markWebhookAsRead(response.id());
             lastReadId = response.id();
         }
     }
 
-    /**
-     * Marca a mensagem do webhook como lida via PATCH.
-     */
-    public void markWebhookAsRead(Long id) {
-        String url = String.format("http://localhost:8088/webhook/payment/received/%d", id);
-        try {
-            restTemplate.patchForObject(url, null, Void.class);
-            log.info("Webhook message {} marked as read", id);
-        } catch (RestClientException ex) {
-            log.error("Failed to mark webhook message {} as read: {}", id, ex.getMessage());
-        }
-    } 
-
     public WebhookResponse getNextPayment() {
-        String url = baseUrl + webhookPath;
+        String url = baseUrl + webhookGetNextPath; // "http://host.docker.internal:8088/webhook/payment/next"; // 
+
+        log.error("url: " + url);
+
         try {
             return restTemplate.getForObject(url, WebhookResponse.class);
         } catch (RestClientException ex) {
@@ -81,6 +82,20 @@ public class WebhookClient {
             return null;
         }
     }
+
+    /**
+     * Marca a mensagem do webhook como lida via PATCH.
+     */
+    public void markWebhookAsRead(Long id) {
+        String url = baseUrl + webhookPatchPath + "/" + id;
+
+        try {
+            restTemplate.postForObject(url, null, Void.class);
+            log.info("Webhook message {} marked as read", id);
+        } catch (RestClientException ex) {
+            log.error("Failed to mark webhook message {} as read: {}", id, ex.getMessage());
+        }
+    } 
 
     public record WebhookResponse(
         Long id,
@@ -100,12 +115,7 @@ public class WebhookClient {
     /**
      * Processa o pagamento recebido do webhook, relacionando eventId ao billing e mudando status para PAID.
      */
-    public void processNextPayment(BillingService billingService) {
-        WebhookResponse response = getNextPayment();
-        if (response == null || response.eventId() == null) {
-            log.warn("No payment event received from webhook");
-            return;
-        }
+    public void processNextPayment(BillingService billingService, WebhookResponse response) {
         try {
             java.util.UUID billingId = java.util.UUID.fromString(response.eventId().replace("pay_", ""));
             billingService.updateBillingStatus(billingId, com.paymentservice.model.enums.BillingStatus.PAID);

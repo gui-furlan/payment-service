@@ -34,13 +34,13 @@ public class BillingController {
     }
 
     @GetMapping("/ticket/{ticketId}")
-    public ResponseEntity<List<Billing>> listByTicket(@PathVariable UUID ticketId) {
+    public ResponseEntity<List<Billing>> listByTicket(@PathVariable String ticketId) {
         return ResponseEntity.ok(billingService.listByTicketId(ticketId));
     }
 
     public record CreateBillingRequest(
             BigDecimal value,
-            UUID ticketId,
+            String ticketId,
             BillingStatus status,
             LocalDateTime dueDate
     ) { }

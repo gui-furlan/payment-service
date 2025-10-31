@@ -4,6 +4,8 @@ import com.paymentservice.client.TicketClient;
 import com.paymentservice.model.Billing;
 import com.paymentservice.model.enums.BillingStatus;
 import com.paymentservice.repository.BillingRepository;
+import com.paymentservice.repository.BillingTicketRepository;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,14 +18,16 @@ import java.util.UUID;
 public class BillingService {
 
     private final BillingRepository billingRepository;
+    private final BillingTicketRepository billingTicketRepository;
     private final TicketClient ticketClient;
 
-    public BillingService(BillingRepository billingRepository, TicketClient ticketClient) {
+    public BillingService(BillingRepository billingRepository, TicketClient ticketClient, BillingTicketRepository billingTicketRepository) {
         this.billingRepository = billingRepository;
         this.ticketClient = ticketClient;
+        this.billingTicketRepository = billingTicketRepository;
     }
 
-    public Billing createBilling(BigDecimal value, UUID ticketId, BillingStatus status, LocalDateTime dueDate) {
+    public Billing createBilling(BigDecimal value, String ticketId, BillingStatus status, LocalDateTime dueDate) {
         Billing billing = new Billing();
         billing.setValue(value);
         billing.setTicketId(ticketId);
@@ -45,8 +49,8 @@ public class BillingService {
     }
 
     @Transactional
-    public List<Billing> listByTicketId(UUID ticketId) {
-        List<Billing> billings = billingRepository.findByTicketId(ticketId);
+    public List<Billing> listByTicketId(String ticketId) {
+        List<Billing> billings = billingTicketRepository.findByTicketId(ticketId);
         LocalDateTime now = LocalDateTime.now();
         for (Billing billing : billings) {
             if (billing.getStatus() == BillingStatus.PENDING
