@@ -34,7 +34,7 @@ public class WebhookClient {
     /**
      * Processa todos os pagamentos disponíveis no webhook até receber 404.
      */
-    public void processAllPayments(BillingService billingService) {
+    public final void processAllPayments(BillingService billingService) {
         Long lastReadId = null;
 
         // WebhookResponse response = null;
@@ -46,28 +46,71 @@ public class WebhookClient {
             WebhookResponse response = null;
 
             try {
-                response = getNextPayment();
+                response = fetchNextPayment();
             } catch (RestClientException ex) {
-                if (ex.getMessage() != null && ex.getMessage().contains("404")) {
-                    log.info("No more payments to process (404 received)");
+                boolean shouldBreak = onFetchError(ex);
+                if (shouldBreak) {
                     break;
+                } else {
+                    continue;
                 }
-                log.error("Error fetching payment: {}", ex.getMessage());
+            }
+
+            if (shouldStop(lastReadId, response)) {
                 break;
             }
 
-            if (response == null) {
-                log.info("No payment response received, stopping");
-                break;
+            handlePayment(billingService, response);
+
+            try {
+                markWebhookAsRead(response.id());
+                afterMarkAsRead(response.id());
+            } catch (RestClientException ex) {
+                onMarkReadError(response.id(), ex);
             }
-            if (lastReadId != null && lastReadId.equals(response.id())) {
-                log.info("Last read message is the same as current. Stopping loop.");
-                break;
-            }
-            processNextPayment(billingService, response);
-            markWebhookAsRead(response.id());
+
             lastReadId = response.id();
         }
+    }
+
+    protected WebhookResponse fetchNextPayment() {
+        return getNextPayment();
+    }
+
+    protected boolean shouldStop(Long lastReadId, WebhookResponse response) {
+        if (response == null) {
+            log.info("No payment response received, stopping");
+            return true;
+        }
+        if (lastReadId != null && lastReadId.equals(response.id())) {
+            log.info("Last read message is the same as current. Stopping loop.");
+            return true;
+        }
+        return false;
+    }
+
+    protected void handlePayment(BillingService billingService, WebhookResponse response) {
+        processNextPayment(billingService, response);
+    }
+
+    /**
+     * Retorna true para encerrar o loop ao ocorrer erro de fetch.
+     */
+    protected boolean onFetchError(RestClientException ex) {
+        if (ex.getMessage() != null && ex.getMessage().contains("404")) {
+            log.info("No more payments to process (404 received)");
+            return true;
+        }
+        log.error("Error fetching payment: {}", ex.getMessage());
+        return true;
+    }
+
+    protected void afterMarkAsRead(Long id) {
+        // Sem operações após a leitura.
+    }
+
+    protected void onMarkReadError(Long id, RestClientException ex) {
+        log.error("Failed to mark webhook message {} as read: {}", id, ex.getMessage());
     }
 
     public WebhookResponse getNextPayment() {
